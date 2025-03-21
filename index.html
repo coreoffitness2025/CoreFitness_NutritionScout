@@ -3,38 +3,102 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nutrition Scout - 영양정보 검색 도구</title>
+  <title>CoreFit Nutrition Scout</title>
   <style>
-    body { font-family: 'Noto Sans KR', sans-serif; background: #f3f7f2; margin: 0; padding: 0; color: #333; }
-    .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-    header { text-align: center; margin-bottom: 30px; padding: 20px 0; }
-    header h1 { font-size: 2rem; color: #4CAF50; margin: 0; margin-bottom: 8px; }
-    header p { color: #666; font-size: 1rem; margin: 0; }
-    .search-container { position: relative; display: flex; flex-direction: row; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-    .search-input { flex: 1; padding: 12px; font-size: 1rem; border: 1px solid #ccc; border-radius: 6px; }
-    .search-button { padding: 12px 20px; font-size: 1rem; background-color: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; }
-    .autocomplete-container { position: absolute; top: calc(100% + 4px); left: 0; background-color: white; border: 1px solid #ccc; border-radius: 4px; max-height: 200px; overflow-y: auto; width: 100%; z-index: 1000; display: none; }
-    .autocomplete-item { padding: 10px; cursor: pointer; }
-    .autocomplete-item:hover { background-color: #f0f0f0; }
-    .result-container { display: none; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 20px; }
-    .food-name { font-size: 1.5rem; font-weight: bold; margin-bottom: 10px; color: #4CAF50; }
-    .nutrition-item { margin-bottom: 8px; font-size: 0.95rem; color: #333; }
-    .nutrition-item span { font-weight: bold; color: #4CAF50; }
-    .comment-container { background-color: #f0f0f0; padding: 15px; border-left: 4px solid #4CAF50; border-radius: 6px; margin-top: 20px; font-size: 0.9rem; line-height: 1.4; color: #333; }
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #f9f9f9;
+      margin: 0; padding: 0; color: #333;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    header h1 {
+      font-size: 2rem;
+      color: #4CAF50;
+    }
+    .search-container {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .search-input {
+      flex: 1;
+      padding: 12px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .search-button {
+      padding: 12px 20px;
+      font-size: 1rem;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .autocomplete-container {
+      position: absolute;
+      background: white;
+      border: 1px solid #ccc;
+      width: calc(100% - 40px);
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+      z-index: 10;
+    }
+    .autocomplete-item {
+      padding: 10px;
+      cursor: pointer;
+    }
+    .autocomplete-item:hover {
+      background-color: #eee;
+    }
+    .result-container {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      display: none;
+    }
+    .food-name {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .nutrition-item {
+      margin-bottom: 8px;
+    }
+    .comment-container {
+      background: #f0f0f0;
+      padding: 15px;
+      border-left: 4px solid #4CAF50;
+      margin-top: 20px;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Nutrition Scout</h1>
-      <p>건강한 식습관을 위한 영양정보 검색 도구</p>
+      <h1>CoreFit Nutrition Scout</h1>
+      <p>영양정보 검색 도구</p>
     </header>
+
     <div class="search-container">
       <input type="text" id="searchInput" class="search-input" placeholder="음식 이름을 입력하세요">
-      <button class="search-button" id="searchBtn">검색</button>
-      <div id="autocomplete" class="autocomplete-container"></div>
+      <button class="search-button" onclick="searchFood()">검색</button>
     </div>
-    <div id="resultContainer" class="result-container">
+    <div id="autocomplete" class="autocomplete-container"></div>
+
+    <div class="result-container" id="resultContainer">
       <div class="food-name" id="foodName"></div>
       <div class="nutrition-item">탄수화물: <span id="carbs"></span> g/100g</div>
       <div class="nutrition-item">단백질: <span id="protein"></span> g/100g</div>
@@ -47,53 +111,63 @@
   <script>
     let foodData = [];
 
+    // CSV 로딩
     Papa.parse('./nutrition_db.csv', {
       download: true,
       header: true,
-      complete: (results) => {
-        console.log("CSV 파싱 결과:", results);
-        foodData = results.data.filter(item => item.요리명);
-        console.log("foodData:", foodData);
+      complete: function(results) {
+        foodData = results.data.filter(item => item.요리명); // key 확인 필수
+        console.log('CSV Loaded:', foodData);
 
+        // 자동완성 이벤트 연결
         const input = document.getElementById('searchInput');
         const autoBox = document.getElementById('autocomplete');
 
-        input.addEventListener('input', () => {
+        input.addEventListener('input', function() {
           const query = input.value.trim().toLowerCase();
           autoBox.innerHTML = '';
-          if (!query) return autoBox.style.display = 'none';
 
-          const suggestions = foodData.filter(item => item.요리명.toLowerCase().includes(query)).slice(0, 10);
+          if (!query) {
+            autoBox.style.display = 'none';
+            return;
+          }
+
+          const suggestions = foodData.filter(item =>
+            item.요리명 && item.요리명.toLowerCase().includes(query)
+          ).slice(0, 10);
+
           suggestions.forEach(item => {
             const div = document.createElement('div');
             div.className = 'autocomplete-item';
             div.textContent = item.요리명;
             div.onclick = () => {
               input.value = item.요리명;
-              autoBox.innerHTML = '';
               autoBox.style.display = 'none';
               displayResult(item);
             };
             autoBox.appendChild(div);
           });
-          autoBox.style.display = suggestions.length ? 'block' : 'none';
-        });
 
-        document.getElementById('searchBtn').addEventListener('click', () => {
-          const query = input.value.trim().toLowerCase();
-          const match = foodData.find(item => item.요리명.toLowerCase() === query);
-          if (match) displayResult(match);
+          autoBox.style.display = suggestions.length ? 'block' : 'none';
         });
       }
     });
+
+    function searchFood() {
+      const input = document.getElementById('searchInput');
+      const query = input.value.trim().toLowerCase();
+      const match = foodData.find(item => item.요리명.toLowerCase() === query);
+      if (match) {
+        displayResult(match);
+      }
+    }
 
     function displayResult(food) {
       document.getElementById('foodName').textContent = food.요리명;
       document.getElementById('carbs').textContent = food['탄수화물(g/100g)'] || '0';
       document.getElementById('protein').textContent = food['단백질(g/100g)'] || '0';
       document.getElementById('fat').textContent = food['지방(g/100g)'] || '0';
-      const comment = food['코멘트'] ? food['코멘트'].replace(/^.*?,\s*/, '') : '';
-      document.getElementById('comment').innerHTML = comment.replace(/\n/g, '<br>');
+      document.getElementById('comment').innerHTML = (food['코멘트'] || '').replace(/\\n/g, '<br>');
       document.getElementById('resultContainer').style.display = 'block';
     }
   </script>
