@@ -30,6 +30,7 @@
             font-size: 1rem;
         }
         .search-container {
+            position: relative;
             display: flex;
             flex-direction: row;
             align-items: center;
@@ -55,13 +56,19 @@
         }
         .autocomplete-container {
             position: absolute;
+            top: 100%;
+            left: 0;
             background-color: white;
             border: 1px solid #ccc;
             border-radius: 4px;
             max-height: 200px;
             overflow-y: auto;
-            width: calc(100% - 40px);
+            width: 100%;
             z-index: 1000;
+            display: none;
+        }
+        .autocomplete-container:empty {
+            display: none;
         }
         .autocomplete-item {
             padding: 10px;
@@ -139,7 +146,10 @@
             input.addEventListener('input', () => {
                 const query = input.value.trim().toLowerCase();
                 autoBox.innerHTML = '';
-                if (!query) return;
+                if (!query) {
+                    autoBox.style.display = 'none';
+                    return;
+                }
                 const suggestions = foodData.filter(item => item.요리명.toLowerCase().includes(query)).slice(0, 10);
                 suggestions.forEach(item => {
                     const div = document.createElement('div');
@@ -148,10 +158,12 @@
                     div.onclick = () => {
                         input.value = item.요리명;
                         autoBox.innerHTML = '';
+                        autoBox.style.display = 'none';
                         displayResult(item);
                     };
                     autoBox.appendChild(div);
                 });
+                autoBox.style.display = suggestions.length ? 'block' : 'none';
             });
         });
 
