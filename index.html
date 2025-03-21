@@ -83,12 +83,16 @@
       margin-top: 20px;
       border-radius: 6px;
     }
-    .error-message {
-      color: #f44336;
-      margin: 10px 0;
+    .debug-info {
+      margin-top: 20px;
       padding: 10px;
-      background-color: #ffebee;
+      background-color: #f5f5f5;
+      border: 1px solid #ddd;
       border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 150px;
+      overflow-y: auto;
       display: none;
     }
   </style>
@@ -105,7 +109,6 @@
       <button class="search-button" onclick="searchFood()">검색</button>
     </div>
     <div id="autocomplete" class="autocomplete-container"></div>
-    <div id="errorMessage" class="error-message"></div>
 
     <div class="result-container" id="resultContainer">
       <div class="food-name" id="foodName"></div>
@@ -114,53 +117,94 @@
       <div class="nutrition-item">지방: <span id="fat"></span> g/100g</div>
       <div class="comment-container" id="comment"></div>
     </div>
+
+    <div id="debugInfo" class="debug-info"></div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script>
     let foodData = [];
-    const errorMessage = document.getElementById('errorMessage');
+    const debugInfo = document.getElementById('debugInfo');
+    
+    // 디버깅 정보 기록 함수
+    function logDebug(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      const logEntry = document.createElement('div');
+      logEntry.textContent = `[${timestamp}] ${message}`;
+      debugInfo.appendChild(logEntry);
+      console.log(`[DEBUG] ${message}`);
+      
+      // 개발 중에만 디버그 정보 표시 (배포 전에 false로 변경)
+      const showDebugInfo = true;
+      if (showDebugInfo) {
+        debugInfo.style.display = 'block';
+      }
+    }
 
-    // CSV 경로들을 시도해볼 배열
-    const possiblePaths = [
-      './nutrition_db.csv',
-      '/nutrition_db.csv',
-      '../nutrition_db.csv',
-      'nutrition_db.csv'
+    // 가능한 CSV 경로들 (GitHub Pages 구조에 맞게 조정)
+    const csvPaths = [
+      'nutrition_db.csv',                 // 같은 디렉토리
+      './nutrition_db.csv',               // 명시적 상대 경로
+      '/nutrition_db.csv',                // 루트 상대 경로
+      '../nutrition_db.csv',              // 상위 디렉토리
+      window.location.pathname.split('/').slice(0, -1).join('/') + '/nutrition_db.csv' // 현재 페이지 기준 경로
     ];
 
-    // 경로들을 하나씩 시도
-    function tryLoadingCSV(pathIndex) {
-      if (pathIndex >= possiblePaths.length) {
-        console.error('모든 CSV 경로 시도 실패');
-        errorMessage.textContent = 'CSV 파일을 찾을 수 없습니다. 파일 경로를 확인해주세요.';
-        errorMessage.style.display = 'block';
-        return;
-      }
+    // GitHub Pages 저장소 이름 감지 시도
+    const pathSegments = window.location.pathname.split('/').filter(Boolean);
+    if (pathSegments.length > 0) {
+      const repoName = pathSegments[0];
+      csvPaths.push(`/${repoName}/nutrition_db.csv`);
+    }
 
-      const path = possiblePaths[pathIndex];
-      console.log(`시도 중인 경로: ${path}`);
+    // Fetch API를 사용하여 CSV 파일 로드
+    async function loadCSV() {
+      logDebug('CSV 로드 시작...');
       
-      Papa.parse(path, {
-        download: true,
-        header: true,
-        complete: function(results) {
-          if (results.data && results.data.length > 0 && results.data[0].요리명) {
-            foodData = results.data.filter(item => item.요리명);
-            console.log('CSV 로드 성공:', path);
-            console.log('데이터 샘플:', foodData.slice(0, 3));
-            errorMessage.style.display = 'none';
-            setupAutocomplete();
-          } else {
-            console.warn(`${path} 경로에서 유효한 데이터를 찾을 수 없습니다.`);
-            tryLoadingCSV(pathIndex + 1);
+      for (const path of csvPaths) {
+        logDebug(`경로 시도: ${path}`);
+        
+        try {
+          const response = await fetch(path);
+          
+          // HTTP 상태 코드 확인
+          if (!response.ok) {
+            logDebug(`경로 ${path}에서 HTTP 오류: ${response.status} ${response.statusText}`);
+            continue;
           }
-        },
-        error: function(error) {
-          console.warn(`${path} 경로 로드 실패:`, error);
-          tryLoadingCSV(pathIndex + 1);
+          
+          const csvText = await response.text();
+          logDebug(`CSV 데이터 수신 (첫 100자): ${csvText.substring(0, 100)}...`);
+          
+          // PapaParse로 CSV 파싱
+          const result = Papa.parse(csvText, {
+            header: true,
+            skipEmptyLines: true
+          });
+          
+          if (result.errors.length > 0) {
+            logDebug(`CSV 파싱 오류: ${JSON.stringify(result.errors)}`);
+            continue;
+          }
+          
+          if (result.data.length === 0 || !result.data[0].요리명) {
+            logDebug('CSV 데이터가 유효하지 않음: 요리명 필드 없음');
+            continue;
+          }
+          
+          foodData = result.data;
+          logDebug(`CSV 로드 성공: ${foodData.length}개 항목`);
+          
+          // 자동완성 설정
+          setupAutocomplete();
+          return true;
+        } catch (error) {
+          logDebug(`경로 ${path}에서 예외 발생: ${error.message}`);
         }
-      });
+      }
+      
+      logDebug('모든 CSV 경로 시도 실패');
+      return false;
     }
 
     function setupAutocomplete() {
@@ -194,6 +238,13 @@
 
         autoBox.style.display = suggestions.length ? 'block' : 'none';
       });
+
+      // 다른 곳 클릭 시 자동완성 숨기기
+      document.addEventListener('click', function(e) {
+        if (e.target !== input && !autoBox.contains(e.target)) {
+          autoBox.style.display = 'none';
+        }
+      });
     }
 
     function searchFood() {
@@ -201,8 +252,7 @@
       const query = input.value.trim().toLowerCase();
       
       if (!foodData.length) {
-        errorMessage.textContent = 'CSV 파일이 아직 로드되지 않았습니다.';
-        errorMessage.style.display = 'block';
+        alert('데이터가 로드되지 않았습니다. 페이지를 새로고침하고 다시 시도해 주세요.');
         return;
       }
       
@@ -213,8 +263,7 @@
       if (match) {
         displayResult(match);
       } else {
-        errorMessage.textContent = '검색 결과가 없습니다.';
-        errorMessage.style.display = 'block';
+        alert('검색 결과가 없습니다.');
       }
     }
 
@@ -225,12 +274,16 @@
       document.getElementById('fat').textContent = food['지방(g/100g)'] || '0';
       document.getElementById('comment').innerHTML = (food['코멘트'] || '').replace(/\\n/g, '<br>');
       document.getElementById('resultContainer').style.display = 'block';
-      errorMessage.style.display = 'none';
     }
 
     // 페이지 로드 시 CSV 로드 시작
-    window.addEventListener('DOMContentLoaded', function() {
-      tryLoadingCSV(0);
+    window.addEventListener('DOMContentLoaded', async function() {
+      logDebug('페이지 로딩 완료, 위치: ' + window.location.href);
+      const success = await loadCSV();
+      
+      if (!success) {
+        alert('CSV 데이터를 로드할 수 없습니다. 콘솔에서 자세한 정보를 확인하세요.');
+      }
     });
   </script>
 </body>
