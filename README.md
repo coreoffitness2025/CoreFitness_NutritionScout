@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -421,7 +420,7 @@
         </div>
 
         <footer class="footer">
-            <p>© 2025 Nutrition Scout | 건강한 식생활을 위한 영양 정보 제공 서비스</p>
+            <p>© 2025 CoreFitness | Back to the Core, Beyond the Trend</p>
         </footer>
     </div>
 
