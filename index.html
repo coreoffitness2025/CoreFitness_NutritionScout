@@ -196,14 +196,10 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       // CSV 로딩 (raw.githubusercontent.com 링크 주의!)
-      Papa.parse('https://raw.githubusercontent.com/coreoffitness2025/CoreFitness_NutritionScout/main/nutrition_db.csv', {
-        download: true,
-        header: true,
-        complete: (results) => {
-          // 요리명이 있는 데이터만 필터
-          foodData = results.data.filter(item => item.요리명);
-        }
-      });
+     Papa.parse('./docs/nutrition_db.csv', { download: true, header: true, complete: (results) => { 
+    console.log("CSV 파싱 결과:", results);
+    foodData = results.data.filter(item => item.요리명);
+}});
 
       const input = document.getElementById('searchInput');
       const autoBox = document.getElementById('autocomplete');
