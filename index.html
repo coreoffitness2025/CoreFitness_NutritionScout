@@ -83,6 +83,14 @@
       margin-top: 20px;
       border-radius: 6px;
     }
+    .error-message {
+      color: #f44336;
+      margin: 10px 0;
+      padding: 10px;
+      background-color: #ffebee;
+      border-radius: 4px;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -97,6 +105,7 @@
       <button class="search-button" onclick="searchFood()">검색</button>
     </div>
     <div id="autocomplete" class="autocomplete-container"></div>
+    <div id="errorMessage" class="error-message"></div>
 
     <div class="result-container" id="resultContainer">
       <div class="food-name" id="foodName"></div>
@@ -110,55 +119,102 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script>
     let foodData = [];
+    const errorMessage = document.getElementById('errorMessage');
 
-    // CSV 로딩
-    Papa.parse('./nutrition_db.csv', {
-      download: true,
-      header: true,
-      complete: function(results) {
-        foodData = results.data.filter(item => item.요리명); // key 확인 필수
-        console.log('CSV Loaded:', foodData);
+    // CSV 경로들을 시도해볼 배열
+    const possiblePaths = [
+      './nutrition_db.csv',
+      '/nutrition_db.csv',
+      '../nutrition_db.csv',
+      'nutrition_db.csv'
+    ];
 
-        // 자동완성 이벤트 연결
-        const input = document.getElementById('searchInput');
-        const autoBox = document.getElementById('autocomplete');
-
-        input.addEventListener('input', function() {
-          const query = input.value.trim().toLowerCase();
-          autoBox.innerHTML = '';
-
-          if (!query) {
-            autoBox.style.display = 'none';
-            return;
-          }
-
-          const suggestions = foodData.filter(item =>
-            item.요리명 && item.요리명.toLowerCase().includes(query)
-          ).slice(0, 10);
-
-          suggestions.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'autocomplete-item';
-            div.textContent = item.요리명;
-            div.onclick = () => {
-              input.value = item.요리명;
-              autoBox.style.display = 'none';
-              displayResult(item);
-            };
-            autoBox.appendChild(div);
-          });
-
-          autoBox.style.display = suggestions.length ? 'block' : 'none';
-        });
+    // 경로들을 하나씩 시도
+    function tryLoadingCSV(pathIndex) {
+      if (pathIndex >= possiblePaths.length) {
+        console.error('모든 CSV 경로 시도 실패');
+        errorMessage.textContent = 'CSV 파일을 찾을 수 없습니다. 파일 경로를 확인해주세요.';
+        errorMessage.style.display = 'block';
+        return;
       }
-    });
+
+      const path = possiblePaths[pathIndex];
+      console.log(`시도 중인 경로: ${path}`);
+      
+      Papa.parse(path, {
+        download: true,
+        header: true,
+        complete: function(results) {
+          if (results.data && results.data.length > 0 && results.data[0].요리명) {
+            foodData = results.data.filter(item => item.요리명);
+            console.log('CSV 로드 성공:', path);
+            console.log('데이터 샘플:', foodData.slice(0, 3));
+            errorMessage.style.display = 'none';
+            setupAutocomplete();
+          } else {
+            console.warn(`${path} 경로에서 유효한 데이터를 찾을 수 없습니다.`);
+            tryLoadingCSV(pathIndex + 1);
+          }
+        },
+        error: function(error) {
+          console.warn(`${path} 경로 로드 실패:`, error);
+          tryLoadingCSV(pathIndex + 1);
+        }
+      });
+    }
+
+    function setupAutocomplete() {
+      const input = document.getElementById('searchInput');
+      const autoBox = document.getElementById('autocomplete');
+
+      input.addEventListener('input', function() {
+        const query = input.value.trim().toLowerCase();
+        autoBox.innerHTML = '';
+
+        if (!query) {
+          autoBox.style.display = 'none';
+          return;
+        }
+
+        const suggestions = foodData.filter(item =>
+          item.요리명 && item.요리명.toLowerCase().includes(query)
+        ).slice(0, 10);
+
+        suggestions.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'autocomplete-item';
+          div.textContent = item.요리명;
+          div.onclick = () => {
+            input.value = item.요리명;
+            autoBox.style.display = 'none';
+            displayResult(item);
+          };
+          autoBox.appendChild(div);
+        });
+
+        autoBox.style.display = suggestions.length ? 'block' : 'none';
+      });
+    }
 
     function searchFood() {
       const input = document.getElementById('searchInput');
       const query = input.value.trim().toLowerCase();
-      const match = foodData.find(item => item.요리명.toLowerCase() === query);
+      
+      if (!foodData.length) {
+        errorMessage.textContent = 'CSV 파일이 아직 로드되지 않았습니다.';
+        errorMessage.style.display = 'block';
+        return;
+      }
+      
+      const match = foodData.find(item => 
+        item.요리명 && item.요리명.toLowerCase() === query
+      );
+      
       if (match) {
         displayResult(match);
+      } else {
+        errorMessage.textContent = '검색 결과가 없습니다.';
+        errorMessage.style.display = 'block';
       }
     }
 
@@ -169,7 +225,13 @@
       document.getElementById('fat').textContent = food['지방(g/100g)'] || '0';
       document.getElementById('comment').innerHTML = (food['코멘트'] || '').replace(/\\n/g, '<br>');
       document.getElementById('resultContainer').style.display = 'block';
+      errorMessage.style.display = 'none';
     }
+
+    // 페이지 로드 시 CSV 로드 시작
+    window.addEventListener('DOMContentLoaded', function() {
+      tryLoadingCSV(0);
+    });
   </script>
 </body>
 </html>
