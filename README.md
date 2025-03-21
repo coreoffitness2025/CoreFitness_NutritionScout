@@ -651,47 +651,7 @@
                     .replace(/\.\s+/g, '.<br><br>') // 마침표 뒤 공백 있는 곳을 단락으로
                     .replace(/\n/g, '<br>'); // 줄바꿈도 유지
             }
-            
-            // 추천 문구 생성 함수
-            function generateRecommendation(carbs, protein, fat, comment) {
-                let recommendation = '이 음식은 ';
-                
-                // 영양소 비율 기반 분석
-                const total = carbs + protein + fat;
-                const carbsPercent = total > 0 ? (carbs / total) * 100 : 0;
-                const proteinPercent = total > 0 ? (protein / total) * 100 : 0;
-                const fatPercent = total > 0 ? (fat / total) * 100 : 0;
-                
-                // 코멘트 텍스트 기반 키워드 분석
-                const lowerComment = comment.toLowerCase();
-                const hasDiet = lowerComment.includes('다이어트') || lowerComment.includes('체중 감량');
-                const hasProtein = lowerComment.includes('단백질') && !lowerComment.includes('단백질이 부족');
-                const hasLowCarb = lowerComment.includes('저탄수화물') || lowerComment.includes('당지수가 낮');
-                
-                // 영양소 비율 기반 추천
-                if (proteinPercent > 40 && carbsPercent < 30) {
-                    recommendation += '근육 발달 및 단백질 보충에 좋은 선택입니다.';
-                } else if (carbsPercent > 60 && fatPercent < 20) {
-                    recommendation += '에너지 보충이 필요한, 운동 전후 식사에 적합합니다.';
-                } else if (fatPercent > 40) {
-                    recommendation += '지방 함량이 높으니 소량만 섭취하는 것이 좋습니다.';
-                } else if (carbsPercent < 30 && fatPercent < 30 && proteinPercent > 30) {
-                    recommendation += '균형 잡힌 영양소를 제공하는 건강한 선택입니다.';
-                }
-                // 코멘트 키워드 기반 추천
-                else if (hasDiet) {
-                    recommendation += '체중 관리 중인 분들에게 적절한 선택입니다.';
-                } else if (hasProtein && !hasDiet) {
-                    recommendation += '운동 후 근육 회복에 도움이 되는 식품입니다.';
-                } else if (hasLowCarb) {
-                    recommendation += '혈당 관리가 필요한 분들에게 적합한 식품입니다.';
-                } else {
-                    recommendation += '일반적인 식단에 포함할 수 있는 식품입니다.';
-                }
-                
-                recommendationText.textContent = recommendation;
-            }
-            
+                       
             // 검색창 외부 클릭 시 자동완성 닫기
             document.addEventListener('click', function(e) {
                 if (!autocompleteContainer.contains(e.target) && e.target !== searchInput) {
